@@ -248,7 +248,7 @@ static void command_loop(void)
                 // Assuming rlen is the length of data to read and send
                 pio_spi_inst_t spi = {
                         .pio = pio0,
-                        .sm = 0
+                        .sm = 0,
                         .cs_pin = 7
                 };
                 read_spi_and_send_via_usb(&spi, rlen);
