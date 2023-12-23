@@ -237,7 +237,7 @@ static void command_loop(void)
                         .pio = pio0,
                         .sm = 0
                 };
-                read_spi_and_send_via_usb(spi, rlen);
+                read_spi_and_send_via_usb(&spi, rlen);
                 break;
             }
         case S_CMD_S_SPI_FREQ:
