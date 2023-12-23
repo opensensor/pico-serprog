@@ -110,7 +110,7 @@ static void wait_for_write(void)
 static inline void sendbytes_blocking(const void *b, uint32_t len)
 {
     while (len) {
-        wait_for_write();
+        // wait_for_write();
         uint32_t w = tud_cdc_n_write(CDC_ITF, b, len);
         b += w;
         len -= w;
@@ -228,13 +228,15 @@ static void command_loop(void)
                 sendbyte_blocking(S_ACK);
 
                 // Handle receive operation in chunks for large rlen
-                cs_select(SPI_CS);
-                while (rlen > 0) {
-                    uint32_t chunk_size = (rlen < MAX_BUFFER_SIZE) ? rlen : MAX_BUFFER_SIZE;
+                uint32_t chunk;
+                char buf[128];
 
-                    spi_read_blocking(SPI_IF, 0, rx_buffer, chunk_size);
-                    sendbytes_blocking(rx_buffer, chunk_size);
-                    rlen -= chunk_size;
+                cs_select(SPI_CS);
+                for(uint32_t i = 0; i < rlen; i += chunk) {
+                    chunk = MIN(rlen - i, sizeof(buf));
+                    pio_spi_read8_blocking(spi, buf, chunk);
+                    fwrite(buf, 1, chunk, stdout);
+                    fflush(stdout);
                 }
                 cs_deselect(SPI_CS);
                 break;
