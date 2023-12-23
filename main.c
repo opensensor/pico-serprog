@@ -223,7 +223,6 @@ static void command_loop(void)
                     cs_deselect(SPI_CS);
                     break;
                 }
-                cs_deselect(SPI_CS);
 
                 // Send ACK after handling slen (before reading)
                 sendbyte_blocking(S_ACK);
@@ -239,7 +238,7 @@ static void command_loop(void)
                     sendbytes_blocking(rx_buffer, chunk_size);
                     rlen -= chunk_size;
                 }
-
+                cs_deselect(SPI_CS);
                 break;
             }
             case S_CMD_S_SPI_FREQ:
