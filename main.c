@@ -48,15 +48,15 @@ void sendbytes_usb(const uint8_t *buf, size_t len) {
 
 
 void read_spi_and_send_via_usb(const pio_spi_inst_t *spi) {
-    static uint8_t rxbuf[BUF_SIZE];
-    memset(rxbuf, 0, BUF_SIZE); // Clear the receive buffer
+    static uint8_t rxbuf[MAX_BUFFER_SIZE];
+    memset(rxbuf, 0, MAX_BUFFER_SIZE); // Clear the receive buffer
 
     // Assuming you have a function to initiate SPI read
-    pio_spi_write8_read8_blocking(spi, rxbuf, BUF_SIZE); // Reads BUF_SIZE bytes into rxbuf
+    pio_spi_write8_read8_blocking(spi, rxbuf, MAX_BUFFER_SIZE); // Reads BUF_SIZE bytes into rxbuf
 
     // Transfer data via USB
     // Assuming you have a function like sendbytes_usb for this
-    sendbytes_usb(rxbuf, BUF_SIZE); // You need to implement this function
+    sendbytes_usb(rxbuf, MAX_BUFFER_SIZE); // You need to implement this function
 }
 
 
