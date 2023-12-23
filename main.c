@@ -23,9 +23,9 @@
 #define SPI_MISO    4
 #define SPI_MOSI    3
 #define SPI_SCK     2
-#define MAX_BUFFER_SIZE 1024
+#define MAX_BUFFER_SIZE 68000
 #define MAX_OPBUF_SIZE 1024
-#define SERIAL_BUFFER_SIZE 1024
+#define SERIAL_BUFFER_SIZE 68000
 
 // Define a global operation buffer and a pointer to track the current position
 uint8_t opbuf[MAX_OPBUF_SIZE];
