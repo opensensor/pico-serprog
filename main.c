@@ -10,6 +10,7 @@
  */
 
 #include "pico/stdlib.h"
+#include "pico/time.h"
 #include "hardware/spi.h"
 #include "tusb.h"
 #include "serprog.h"
@@ -22,6 +23,12 @@
 #define SPI_MISO    4
 #define SPI_MOSI    3
 #define SPI_SCK     2
+#define MAX_BUFFER_SIZE 4096
+#define MAX_OPBUF_SIZE 4096
+
+// Define a global operation buffer and a pointer to track the current position
+uint8_t opbuf[MAX_OPBUF_SIZE];
+uint32_t opbuf_pos = 0;
 
 static void enable_spi(uint baud)
 {
@@ -55,18 +62,16 @@ static void disable_spi()
     spi_deinit(SPI_IF);
 }
 
-static inline void cs_select(uint cs_pin)
-{
-    asm volatile("nop \n nop \n nop"); // FIXME
+static inline void cs_select(uint cs_pin) {
+    sleep_us(1); // 1 microsecond delay; adjust as needed
     gpio_put(cs_pin, 0);
-    asm volatile("nop \n nop \n nop"); // FIXME
+    sleep_us(1); // Additional delay after CS is pulled low
 }
 
-static inline void cs_deselect(uint cs_pin)
-{
-    asm volatile("nop \n nop \n nop"); // FIXME
+static inline void cs_deselect(uint cs_pin) {
+    sleep_us(1); // Delay before pulling CS high
     gpio_put(cs_pin, 1);
-    asm volatile("nop \n nop \n nop"); // FIXME
+    sleep_us(1); // Additional delay after CS is pulled high
 }
 
 static void wait_for_read(void)
@@ -232,6 +237,93 @@ static void command_loop(void)
                 disable_spi();
             sendbyte_blocking(S_ACK);
             break;
+        case S_CMD_R_BYTE:
+            {
+                uint32_t addr;
+                readbytes_blocking(&addr, 3);
+                uint8_t data;
+
+                cs_select(SPI_CS);
+                spi_write_blocking(SPI_IF, (uint8_t*)&addr, 3); // Send address
+                spi_read_blocking(SPI_IF, 0, &data, 1); // Read one byte
+                cs_deselect(SPI_CS);
+
+                sendbyte_blocking(S_ACK);
+                sendbyte_blocking(data);
+                break;
+            }
+        case S_CMD_R_NBYTES:
+            {
+                uint32_t addr, len;
+                readbytes_blocking(&addr, 3);
+                readbytes_blocking(&len, 3);
+
+                uint8_t buffer[MAX_BUFFER_SIZE]; // Define MAX_BUFFER_SIZE based on your hardware capability
+
+                cs_select(SPI_CS);
+                spi_write_blocking(SPI_IF, (uint8_t*)&addr, 3); // Send address
+
+                while (len > 0) {
+                    uint32_t chunk_size = (len < MAX_BUFFER_SIZE) ? len : MAX_BUFFER_SIZE;
+                    spi_read_blocking(SPI_IF, 0, buffer, chunk_size);
+                    sendbytes_blocking(buffer, chunk_size);
+                    len -= chunk_size;
+                }
+
+                cs_deselect(SPI_CS);
+
+                sendbyte_blocking(S_ACK);
+                break;
+            }
+        case S_CMD_O_WRITEB:
+            {
+                if (opbuf_pos + 5 > MAX_OPBUF_SIZE) {
+                    sendbyte_blocking(S_NAK);
+                    break;
+                }
+
+                uint32_t addr;
+                uint8_t byte;
+                readbytes_blocking(&addr, 3);
+                byte = readbyte_blocking();
+
+                // Store in operation buffer (assuming format: 1-byte command, 3-byte address, 1-byte data)
+                opbuf[opbuf_pos++] = S_CMD_O_WRITEB;
+                memcpy(&opbuf[opbuf_pos], &addr, 3);
+                opbuf_pos += 3;
+                opbuf[opbuf_pos++] = byte;
+
+                sendbyte_blocking(S_ACK);
+                break;
+            }
+            case S_CMD_O_WRITEB:
+            {
+                if (opbuf_pos + 5 > MAX_OPBUF_SIZE) {
+                    sendbyte_blocking(S_NAK);
+                    break;
+                }
+
+                uint32_t addr;
+                uint8_t byte;
+                readbytes_blocking(&addr, 3);
+                byte = readbyte_blocking();
+
+                // Store in operation buffer (assuming format: 1-byte command, 3-byte address, 1-byte data)
+                opbuf[opbuf_pos++] = S_CMD_O_WRITEB;
+                memcpy(&opbuf[opbuf_pos], &addr, 3);
+                opbuf_pos += 3;
+                opbuf[opbuf_pos++] = byte;
+
+                sendbyte_blocking(S_ACK);
+                break;
+            }
+        case S_CMD_O_INIT:
+            {
+                opbuf_pos = 0; // Reset the operation buffer position
+                memset(opbuf, 0, MAX_OPBUF_SIZE); // Clear the buffer (optional)
+                sendbyte_blocking(S_ACK);
+                break;
+            }
         default:
             sendbyte_blocking(S_NAK);
             break;
