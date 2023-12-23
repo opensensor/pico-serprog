@@ -228,16 +228,14 @@ static void command_loop(void)
                 sendbyte_blocking(S_ACK);
 
                 // Handle receive operation in chunks
-                while (rlen > 0) {
-                    uint32_t chunk_size = (rlen < MAX_BUFFER_SIZE) ? rlen : MAX_BUFFER_SIZE;
+                uint32_t chunk_size = (rlen < MAX_BUFFER_SIZE) ? rlen : MAX_BUFFER_SIZE;
 
-                    cs_select(SPI_CS);
-                    spi_read_blocking(SPI_IF, 0, rx_buffer, chunk_size);
-                    cs_deselect(SPI_CS);
+                cs_select(SPI_CS);
+                spi_read_blocking(SPI_IF, 0, rx_buffer, chunk_size);
+                cs_deselect(SPI_CS);
 
-                    sendbytes_blocking(rx_buffer, chunk_size);
-                    rlen -= chunk_size;
-                }
+                sendbytes_blocking(rx_buffer, chunk_size);
+                rlen -= chunk_size;
                 cs_deselect(SPI_CS);
                 break;
             }
