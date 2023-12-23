@@ -36,10 +36,17 @@
 uint8_t opbuf[MAX_OPBUF_SIZE];
 uint32_t opbuf_pos = 0;
 
+static void wait_for_write(void)
+{
+    do {
+        tud_task();
+    } while (!tud_cdc_n_write_available(CDC_ITF));
+}
+
 
 void sendbytes_usb(const uint8_t *buf, size_t len) {
     // Check if USB is ready for data transfer
-    wait_for_write()
+    wait_for_write();
     // Write data to the USB CDC interface
     tud_cdc_write(buf, len);
     // tud_cdc_write_flush();
@@ -134,13 +141,6 @@ static inline uint8_t readbyte_blocking(void)
     return b;
 }
 
-
-static void wait_for_write(void)
-{
-    do {
-        tud_task();
-    } while (!tud_cdc_n_write_available(CDC_ITF));
-}
 
 static inline void sendbytes_blocking(const void *b, uint32_t len)
 {
