@@ -39,10 +39,10 @@ uint32_t opbuf_pos = 0;
 
 void sendbytes_usb(const uint8_t *buf, size_t len) {
     // Check if USB is ready for data transfer
-    if (tud_cdc_connected()) {
-        // Write data to the USB CDC interface
-        tud_cdc_write(buf, len);
-        tud_cdc_write_flush();
+    wait_for_write()
+    // Write data to the USB CDC interface
+    tud_cdc_write(buf, len);
+    // tud_cdc_write_flush();
     }
 }
 
@@ -61,7 +61,7 @@ void read_spi_and_send_via_usb(const pio_spi_inst_t *spi, const uint32_t rlen) {
 
         // Transfer data via USB
         sendbytes_usb(rxbuf, chunk_size);
-    }
+        }
 }
 
 
