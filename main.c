@@ -155,28 +155,6 @@ static inline void sendbyte_blocking(uint8_t b)
 }
 
 
-void handle_spi_op(uint32_t slen, uint32_t rlen) {
-    uint8_t tx_buffer[MAX_BUFFER_SIZE]; // Buffer for transmit data
-    uint8_t rx_buffer[MAX_BUFFER_SIZE]; // Buffer for receive data
-
-    // Read data to be sent
-    if (slen > 0) {
-        readbytes_blocking(tx_buffer, slen);  // Assuming you have this function
-    }
-
-    // Perform PIO SPI operation
-    cs_select(SPI_CS);  // Assuming cs_select function is defined
-    pio_spi_write8_read8_blocking(spi, dummy_tx_buf, rxbuf, rlen);
-    cs_deselect(SPI_CS);  // Assuming cs_deselect function is defined
-
-    // Send ACK and received data
-    sendbyte_blocking(S_ACK);  // Assuming sendbyte_blocking function is defined
-    if (rlen > 0) {
-        sendbytes_blocking(rx_buffer, rlen);  // Assuming sendbytes_blocking function is defined
-    }
-}
-
-
 static void command_loop(void)
 {
     uint baud = spi_get_baudrate(SPI_IF);
