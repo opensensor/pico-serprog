@@ -193,6 +193,8 @@ static void command_loop(void)
                 uint32_t rlen = 0;
                 readbytes_blocking(&rlen, 3);
 
+                sendbyte_blocking(S_ACK);
+
                 cs_select(SPI_CS);
 
                 while (wlen) {
@@ -201,8 +203,6 @@ static void command_loop(void)
                     spi_write_blocking(SPI_IF, buf, cur);
                     wlen -= cur;
                 }
-
-                sendbyte_blocking(S_ACK);
 
                 while (rlen) {
                     uint32_t cur = MIN(rlen, sizeof buf);
