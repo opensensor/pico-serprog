@@ -50,7 +50,6 @@ void sendbytes_usb(const uint8_t *buf, size_t len) {
     // Write data to the USB CDC interface
     tud_cdc_write(buf, len);
     // tud_cdc_write_flush();
-    }
 }
 
 
