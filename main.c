@@ -244,6 +244,9 @@ static void command_loop(void)
 
                 // Perform SPI operation
                 cs_select(SPI_CS);
+                if (slen > 0) {
+                    spi_write_blocking(SPI_IF, tx_buffer, slen);
+                }
                 // Now call the modified function to read from SPI and send via USB
                 // Assuming rlen is the length of data to read and send
                 pio_spi_inst_t spi = {
