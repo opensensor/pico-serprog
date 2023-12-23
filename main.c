@@ -23,8 +23,9 @@
 #define SPI_MISO    4
 #define SPI_MOSI    3
 #define SPI_SCK     2
-#define MAX_BUFFER_SIZE 4096
-#define MAX_OPBUF_SIZE 4096
+#define MAX_BUFFER_SIZE 1024
+#define MAX_OPBUF_SIZE 1024
+#define SERIAL_BUFFER_SIZE 1024
 
 // Define a global operation buffer and a pointer to track the current position
 uint8_t opbuf[MAX_OPBUF_SIZE];
@@ -165,10 +166,16 @@ static void command_loop(void)
                 break;
             }
         case S_CMD_Q_SERBUF:
-            sendbyte_blocking(S_ACK);
-            sendbyte_blocking(0xFF);
-            sendbyte_blocking(0xFF);
-            break;
+            {
+                sendbyte_blocking(S_ACK);
+
+                // Send the buffer size as a 16-bit little-endian value
+                uint16_t bufferSizeLE = SERIAL_BUFFER_SIZE & 0xFFFF;
+                sendbyte_blocking((uint8_t)(bufferSizeLE & 0xFF));        // Lower byte
+                sendbyte_blocking((uint8_t)((bufferSizeLE >> 8) & 0xFF)); // Upper byte
+
+                break;
+            }
         case S_CMD_Q_BUSTYPE:
             sendbyte_blocking(S_ACK);
             sendbyte_blocking((1 << 3)); // BUS_SPI
