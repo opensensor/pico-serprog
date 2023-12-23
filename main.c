@@ -231,13 +231,12 @@ static void command_loop(void)
                 uint32_t chunk;
                 char buf[128];
 
-                cs_select(SPI_CS);
                 for(uint32_t i = 0; i < rlen; i += chunk) {
                     chunk = MIN(rlen - i, sizeof(buf));
                     spi_read_blocking(SPI_IF, 0, buf, chunk);
                     // Send ACK followed by received data
                     sendbyte_blocking(S_ACK);
-                    sendbytes_blocking(rx_buffer, rlen);
+                    sendbytes_blocking(buf, rlen);
                 }
                 cs_deselect(SPI_CS);
                 break;
