@@ -18,7 +18,7 @@
 #define CDC_ITF     0           // USB CDC interface no
 
 #define SPI_IF      spi0        // Which PL022 to use
-#define SPI_BAUD    4000000    // Default baudrate (4 MHz - SPI defaultt d)
+#define SPI_BAUD    4000000    // Default baudrate (4 MHz - SPI default)
 #define SPI_CS      5
 #define SPI_MISO    4
 #define SPI_MOSI    3
@@ -196,6 +196,8 @@ static void command_loop(void)
                 uint32_t slen, rlen;
                 readbytes_blocking(&slen, 3); // Read send length
                 readbytes_blocking(&rlen, 3); // Read receive length
+                slen &= 0x00FFFFFF; // Mask to zero out the upper 8 bits
+                rlen &= 0x00FFFFFF; // Mask to zero out the upper 8 bitsgi
 
                 uint8_t tx_buffer[MAX_BUFFER_SIZE]; // Buffer for transmit data
                 uint8_t rx_buffer[MAX_BUFFER_SIZE]; // Buffer for receive data
