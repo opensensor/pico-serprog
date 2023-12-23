@@ -51,11 +51,17 @@ void read_spi_and_send_via_usb(const pio_spi_inst_t *spi, const uint32_t rlen) {
     static uint8_t rxbuf[MAX_BUFFER_SIZE];
     memset(rxbuf, 0, MAX_BUFFER_SIZE); // Clear the rx buffer
 
-    // Perform a dummy write and then read
-    pio_spi_read8_blocking(spi, rxbuf, rlen);
+    // Ensure we send rlen bytes
+    uint32_t remaining = rlen;
+    while (remaining) {
+        // Perform a dummy write and then read
+        uint32_t chunk_size = (remaining < MAX_BUFFER_SIZE) ? remaining : MAX_BUFFER_SIZE;
+        pio_spi_read8_blocking(spi, rxbuf, chunk_size);
+        remaining -= chunk_size;
 
-    // Transfer data via USB
-    sendbytes_usb(rxbuf, MAX_BUFFER_SIZE);
+        // Transfer data via USB
+        sendbytes_usb(rxbuf, chunk_size);
+    }
 }
 
 
@@ -228,6 +234,31 @@ static void command_loop(void)
                 readbytes_blocking(&rlen, 3); // Read receive length
                 slen &= 0x00FFFFFF; // Mask to use only the lower 24 bits
                 rlen &= 0x00FFFFFF; // Mask to use only the lower 24 bits
+
+                uint8_t tx_buffer[MAX_BUFFER_SIZE]; // Buffer for transmit data
+                uint8_t rx_buffer[MAX_BUFFER_SIZE]; // Buffer for receive data
+
+                // Read data to be sent (if slen > 0)
+                if (slen > 0) {
+                    readbytes_blocking(tx_buffer, slen);
+                }
+
+                // Perform SPI operation
+                cs_select(SPI_CS);
+                if (slen > 0) {
+                    spi_write_blocking(SPI_IF, tx_buffer, slen);
+                }
+                if (rlen > 0 && rlen < MAX_BUFFER_SIZE ) {
+                    spi_read_blocking(SPI_IF, 0, rx_buffer, rlen);
+                    // Send ACK followed by received data
+                    sendbyte_blocking(S_ACK);
+                    if (rlen > 0) {
+                        sendbytes_blocking(rx_buffer, rlen);
+                    }
+
+                    cs_deselect(SPI_CS);
+                    break;
+                }
 
                 // Now call the modified function to read from SPI and send via USB
                 // Assuming rlen is the length of data to read and send
