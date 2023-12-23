@@ -11,6 +11,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "pico.h"
+#include "hardware/regs/clocks.h"
+#include "hardware/platform_defs.h"
+#include "hardware/clocks.h"
+#include "hardware/irq.h"
+#include "hardware/gpio.h"
 #include "pico/stdlib.h"
 #include "pico/time.h"
 #include "hardware/spi.h"
