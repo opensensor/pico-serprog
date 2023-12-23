@@ -202,38 +202,31 @@ static void command_loop(void)
                 uint8_t tx_buffer[MAX_BUFFER_SIZE]; // Buffer for transmit data
                 uint8_t rx_buffer[MAX_BUFFER_SIZE]; // Buffer for receive data
 
-                // Handle error for oversized slen
-                if (slen > MAX_BUFFER_SIZE) {
-                    sendbyte_blocking(S_NAK);
-                    break;
-                }
+                // Handle send operation in chunks
+                while (slen > 0) {
+                    uint32_t chunk_size = (slen < MAX_BUFFER_SIZE) ? slen : MAX_BUFFER_SIZE;
+                    readbytes_blocking(tx_buffer, chunk_size);
 
-                // Read data to be sent (if slen > 0)
-                if (slen > 0) {
-                    readbytes_blocking(tx_buffer, slen);
-                }
-
-                // Perform SPI write operation (if slen > 0)
-                if (slen > 0) {
                     cs_select(SPI_CS);
-                    spi_write_blocking(SPI_IF, tx_buffer, slen);
+                    spi_write_blocking(SPI_IF, tx_buffer, chunk_size);
                     cs_deselect(SPI_CS);
+
+                    slen -= chunk_size;
                 }
 
                 // Send ACK after handling slen (before reading)
                 sendbyte_blocking(S_ACK);
 
-                // Perform SPI read operation in chunks (if rlen > 0)
-                uint32_t total_read = 0;
-                while (total_read < rlen) {
-                    uint32_t chunk_size = (rlen - total_read > MAX_BUFFER_SIZE) ? MAX_BUFFER_SIZE : (rlen - total_read);
+                // Handle receive operation in chunks
+                while (rlen > 0) {
+                    uint32_t chunk_size = (rlen < MAX_BUFFER_SIZE) ? rlen : MAX_BUFFER_SIZE;
 
                     cs_select(SPI_CS);
                     spi_read_blocking(SPI_IF, 0, rx_buffer, chunk_size);
                     cs_deselect(SPI_CS);
 
                     sendbytes_blocking(rx_buffer, chunk_size);
-                    total_read += chunk_size;
+                    rlen -= chunk_size;
                 }
 
                 break;
