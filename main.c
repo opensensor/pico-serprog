@@ -33,6 +33,7 @@
 #define MAX_BUFFER_SIZE 512
 #define MAX_OPBUF_SIZE 512
 #define SERIAL_BUFFER_SIZE 512
+#define FREQ 1000000
 
 // Define a global operation buffer and a pointer to track the current position
 uint8_t opbuf[MAX_OPBUF_SIZE];
@@ -76,7 +77,7 @@ static void enable_spi(uint baud)
 
     spi_offset = pio_add_program(pio0, &spi_cpha0_program);
     spi_init(SPI_IF, baud);
-    float clkdiv = freq_to_clkdiv(freq);
+    float clkdiv = freq_to_clkdiv(FREQ);
     pio_spi_init(pio0, 0, pio_add_program(pio0, &spi_cpha0_program), 8, 4058.838, 0, 0, SPI_SCK, SPI_MOSI, SPI_MISO);
 
 
