@@ -166,7 +166,7 @@ void handle_spi_op(uint32_t slen, uint32_t rlen) {
 
     // Perform PIO SPI operation
     cs_select(SPI_CS);  // Assuming cs_select function is defined
-    pio_spi_write8_read8_blocking(tx_buffer, rx_buffer, slen, rlen);  // Replace with your PIO SPI function
+    pio_spi_write_read_blocking(tx_buffer, rx_buffer, slen, rlen);  // Replace with your PIO SPI function
     cs_deselect(SPI_CS);  // Assuming cs_deselect function is defined
 
     // Send ACK and received data
