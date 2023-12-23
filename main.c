@@ -66,7 +66,7 @@ void read_spi_and_send_via_usb(const pio_spi_inst_t *spi, const uint32_t rlen) {
         remaining -= chunk_size;
 
         // Transfer data via USB
-        sendbytes_usb(rxbuf, chunk_size);
+        sendbytes_blocking(rxbuf, chunk_size);
         }
 }
 
