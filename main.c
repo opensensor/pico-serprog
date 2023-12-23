@@ -57,6 +57,8 @@ void read_spi_and_send_via_usb(const pio_spi_inst_t *spi, const uint32_t rlen) {
     static uint8_t rxbuf[MAX_BUFFER_SIZE];
     memset(rxbuf, 0, MAX_BUFFER_SIZE); // Clear the rx buffer
 
+    pio_spi_init(pio0, 0, pio_add_program(pio0, &spi_cpha0_program), 8, rlen, 0, 0, SPI_SCK, SPI_MOSI, SPI_MISO);
+
     // Ensure we send rlen bytes
     uint32_t remaining = rlen;
     while (remaining) {
@@ -359,8 +361,6 @@ int main()
     stdio_init_all();
 
     tusb_init();
-
-    pio_spi_init(pio0, 0, pio_add_program(pio0, &spi_cpha0_program), 8, 31.25f, 0, 0, SPI_SCK, SPI_MOSI, SPI_MISO);
 
     // Setup PL022 SPI
     enable_spi(SPI_BAUD);
