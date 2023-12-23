@@ -363,7 +363,7 @@ int main()
 
     tusb_init();
 
-    pio_spi_init(pio0, 0, pio_add_program(pio0, &spi_cpha0_program), 8, 62.50f, 0, 0, SPI_SCK, SPI_MOSI, SPI_MISO);
+    pio_spi_init(pio0, 0, pio_add_program(pio0, &spi_cpha0_program), 8, 4058.838, 0, 0, SPI_SCK, SPI_MOSI, SPI_MISO);
 
     // Setup PL022 SPI
     enable_spi(SPI_BAUD);
