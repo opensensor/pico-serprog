@@ -36,6 +36,14 @@
 uint8_t opbuf[MAX_OPBUF_SIZE];
 uint32_t opbuf_pos = 0;
 
+static void wait_for_write(void)
+{
+    do {
+        tud_task();
+    } while (!tud_cdc_n_write_available(CDC_ITF));
+}
+
+
 static void enable_spi(uint baud)
 {
     // Setup chip select GPIO
@@ -109,7 +117,7 @@ static inline uint8_t readbyte_blocking(void)
 static inline void sendbytes_blocking(const void *b, uint32_t len)
 {
     while (len) {
-        // wait_for_write();
+        wait_for_write();
         uint32_t w = tud_cdc_n_write(CDC_ITF, b, len);
         b += w;
         len -= w;
