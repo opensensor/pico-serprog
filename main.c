@@ -199,36 +199,16 @@ static void command_loop(void)
                 slen &= 0x00FFFFFF; // Mask to zero out the upper 8 bits
                 rlen &= 0x00FFFFFF; // Mask to zero out the upper 8 bitsgi
 
-                uint8_t tx_buffer[MAX_BUFFER_SIZE]; // Buffer for transmit data
-                uint8_t rx_buffer[MAX_BUFFER_SIZE]; // Buffer for receive data
-
-                // Ensure buffer sizes are adequate
-                if (slen > MAX_BUFFER_SIZE || rlen > MAX_BUFFER_SIZE) {
-                    sendbyte_blocking(S_NAK);
-                    break;
+                // Try reading one byte at a time from rom chip and sending it back to flashrom
+                while (slen > 0) {
+                    uint8_t data;
+                    cs_select(SPI_CS);
+                    spi_read_blocking(SPI_IF, 0, &data, 1); // Read and send one byte at a time
+                    cs_deselect(SPI_CS);
+                    sendbyte_blocking(S_ACK);
+                    sendbyte_blocking(data);
+                    slen--;
                 }
-
-                // Read data to be sent (if slen > 0)
-                if (slen > 0) {
-                    readbytes_blocking(tx_buffer, slen);
-                }
-
-                // Perform SPI operation
-                cs_select(SPI_CS);
-                if (slen > 0) {
-                    spi_write_blocking(SPI_IF, tx_buffer, slen);
-                }
-                if (rlen > 0) {
-                    spi_read_blocking(SPI_IF, 0, rx_buffer, rlen);
-                }
-                cs_deselect(SPI_CS);
-
-                // Send ACK followed by received data
-                sendbyte_blocking(S_ACK);
-                if (rlen > 0) {
-                    sendbytes_blocking(rx_buffer, rlen);
-                }
-
                 break;
             }
         case S_CMD_S_SPI_FREQ:
