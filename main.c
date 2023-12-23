@@ -53,24 +53,6 @@ void sendbytes_usb(const uint8_t *buf, size_t len) {
 }
 
 
-void read_spi_and_send_via_usb(const pio_spi_inst_t *spi, const uint32_t rlen) {
-    static uint8_t rxbuf[MAX_BUFFER_SIZE];
-    memset(rxbuf, 0, MAX_BUFFER_SIZE); // Clear the rx buffer
-
-    // Ensure we send rlen bytes
-    uint32_t remaining = rlen;
-    while (remaining) {
-        // Perform a dummy write and then read
-        uint32_t chunk_size = (remaining < MAX_BUFFER_SIZE) ? remaining : MAX_BUFFER_SIZE;
-        pio_spi_read8_blocking(spi, rxbuf, chunk_size);
-        remaining -= chunk_size;
-
-        // Transfer data via USB
-        sendbytes_blocking(rxbuf, chunk_size);
-        }
-}
-
-
 static void enable_spi(uint baud)
 {
     // Setup chip select GPIO
@@ -150,6 +132,25 @@ static inline void sendbytes_blocking(const void *b, uint32_t len)
         len -= w;
     }
 }
+
+
+void read_spi_and_send_via_usb(const pio_spi_inst_t *spi, const uint32_t rlen) {
+    static uint8_t rxbuf[MAX_BUFFER_SIZE];
+    memset(rxbuf, 0, MAX_BUFFER_SIZE); // Clear the rx buffer
+
+    // Ensure we send rlen bytes
+    uint32_t remaining = rlen;
+    while (remaining) {
+        // Perform a dummy write and then read
+        uint32_t chunk_size = (remaining < MAX_BUFFER_SIZE) ? remaining : MAX_BUFFER_SIZE;
+        pio_spi_read8_blocking(spi, rxbuf, chunk_size);
+        remaining -= chunk_size;
+
+        // Transfer data via USB
+        sendbytes_blocking(rxbuf, chunk_size);
+    }
+}
+
 
 static inline void sendbyte_blocking(uint8_t b)
 {
