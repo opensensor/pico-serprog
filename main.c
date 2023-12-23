@@ -193,34 +193,42 @@ static void command_loop(void)
             break;
         case S_CMD_O_SPIOP:
             {
-                static uint8_t buf[4096];
+                uint32_t slen, rlen;
+                readbytes_blocking(&slen, 3); // Read send length
+                readbytes_blocking(&rlen, 3); // Read receive length
 
-                uint32_t wlen = 0;
-                readbytes_blocking(&wlen, 3);
-                uint32_t rlen = 0;
-                readbytes_blocking(&rlen, 3);
+                uint8_t tx_buffer[MAX_BUFFER_SIZE]; // Buffer for transmit data
+                uint8_t rx_buffer[MAX_BUFFER_SIZE]; // Buffer for receive data
 
-                sendbyte_blocking(S_ACK);
+                // Ensure buffer sizes are adequate
+                if (slen > MAX_BUFFER_SIZE || rlen > MAX_BUFFER_SIZE) {
+                    sendbyte_blocking(S_NAK);
+                    break;
+                }
 
+                // Read data to be sent (if slen > 0)
+                if (slen > 0) {
+                    readbytes_blocking(tx_buffer, slen);
+                }
+
+                // Perform SPI operation
                 cs_select(SPI_CS);
-
-                while (wlen) {
-                    uint32_t cur = MIN(wlen, sizeof buf);
-                    readbytes_blocking(buf, cur);
-                    spi_write_blocking(SPI_IF, buf, cur);
-                    wlen -= cur;
+                if (slen > 0) {
+                    spi_write_blocking(SPI_IF, tx_buffer, slen);
                 }
-
-                while (rlen) {
-                    uint32_t cur = MIN(rlen, sizeof buf);
-                    spi_read_blocking(SPI_IF, 0, buf, cur);
-                    sendbytes_blocking(buf, cur);
-                    rlen -= cur;
+                if (rlen > 0) {
+                    spi_read_blocking(SPI_IF, 0, rx_buffer, rlen);
                 }
-
                 cs_deselect(SPI_CS);
+
+                // Send ACK followed by received data
+                sendbyte_blocking(S_ACK);
+                if (rlen > 0) {
+                    sendbytes_blocking(rx_buffer, rlen);
+                }
+
+                break;
             }
-            break;
         case S_CMD_S_SPI_FREQ:
             {
                 uint32_t want_baud;
