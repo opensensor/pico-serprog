@@ -296,27 +296,6 @@ static void command_loop(void)
                 sendbyte_blocking(S_ACK);
                 break;
             }
-            case S_CMD_O_WRITEB:
-            {
-                if (opbuf_pos + 5 > MAX_OPBUF_SIZE) {
-                    sendbyte_blocking(S_NAK);
-                    break;
-                }
-
-                uint32_t addr;
-                uint8_t byte;
-                readbytes_blocking(&addr, 3);
-                byte = readbyte_blocking();
-
-                // Store in operation buffer (assuming format: 1-byte command, 3-byte address, 1-byte data)
-                opbuf[opbuf_pos++] = S_CMD_O_WRITEB;
-                memcpy(&opbuf[opbuf_pos], &addr, 3);
-                opbuf_pos += 3;
-                opbuf[opbuf_pos++] = byte;
-
-                sendbyte_blocking(S_ACK);
-                break;
-            }
         case S_CMD_O_INIT:
             {
                 opbuf_pos = 0; // Reset the operation buffer position
