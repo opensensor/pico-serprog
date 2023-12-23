@@ -244,21 +244,6 @@ static void command_loop(void)
 
                 // Perform SPI operation
                 cs_select(SPI_CS);
-                if (slen > 0) {
-                    spi_write_blocking(SPI_IF, tx_buffer, slen);
-                }
-                if (rlen > 0 && rlen < MAX_BUFFER_SIZE ) {
-                    spi_read_blocking(SPI_IF, 0, rx_buffer, rlen);
-                    // Send ACK followed by received data
-                    sendbyte_blocking(S_ACK);
-                    if (rlen > 0) {
-                        sendbytes_blocking(rx_buffer, rlen);
-                    }
-
-                    cs_deselect(SPI_CS);
-                    break;
-                }
-
                 // Now call the modified function to read from SPI and send via USB
                 // Assuming rlen is the length of data to read and send
                 pio_spi_inst_t spi = {
@@ -266,6 +251,7 @@ static void command_loop(void)
                         .sm = 0
                 };
                 read_spi_and_send_via_usb(&spi, rlen);
+                cs_deselect(SPI_CS);
                 break;
             }
         case S_CMD_S_SPI_FREQ:
