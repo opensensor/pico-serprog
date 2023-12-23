@@ -247,8 +247,10 @@ static void command_loop(void)
                 if (slen > 0) {
                     spi_write_blocking(SPI_IF, tx_buffer, slen);
                 }
+
                 // Now call the modified function to read from SPI and send via USB
                 // Assuming rlen is the length of data to read and send
+                pio_spi_init(pio0, 0, pio_add_program(pio0, &spi_cpha0_program), 8, 4058.838, 0, 0, SPI_SCK, SPI_MOSI, SPI_MISO);
                 pio_spi_inst_t spi = {
                         .pio = pio0,
                         .sm = 0,
@@ -307,6 +309,7 @@ static void command_loop(void)
                 cs_select(SPI_CS);
                 spi_write_blocking(SPI_IF, (uint8_t*)&addr, 3); // Send address
 
+
                 while (len > 0) {
                     uint32_t chunk_size = (len < MAX_BUFFER_SIZE) ? len : MAX_BUFFER_SIZE;
                     spi_read_blocking(SPI_IF, 0, buffer, chunk_size);
@@ -363,8 +366,7 @@ int main()
 
     tusb_init();
 
-    pio_spi_init(pio0, 0, pio_add_program(pio0, &spi_cpha0_program), 8, 4058.838, 0, 0, SPI_SCK, SPI_MOSI, SPI_MISO);
-
+\
     // Setup PL022 SPI
     enable_spi(SPI_BAUD);
 
