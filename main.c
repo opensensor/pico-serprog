@@ -190,7 +190,7 @@ static void command_loop(void)
                 sendbyte_blocking(S_ACK);
             else
                 sendbyte_blocking(S_NAK);
-            break
+            break;
         case S_CMD_O_SPIOP:
             {
                 uint32_t slen, rlen;
