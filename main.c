@@ -36,6 +36,13 @@
 uint8_t opbuf[MAX_OPBUF_SIZE];
 uint32_t opbuf_pos = 0;
 
+static const pio_spi_inst_t spi = {
+        .pio = pio0,
+        .sm = 0,
+        .cs_pin = SPI_CS
+};
+static uint spi_offset;
+
 static void wait_for_write(void)
 {
     do {
