@@ -234,7 +234,7 @@ static void command_loop(void)
                 cs_select(SPI_CS);
                 for(uint32_t i = 0; i < rlen; i += chunk) {
                     chunk = MIN(rlen - i, sizeof(buf));
-                    spi_read_blocking(SPI_IF, buf, chunk);
+                    spi_read_blocking(SPI_IF, 0, buf, chunk);
                     fwrite(buf, 1, chunk, stdout);
                     fflush(stdout);
                 }
