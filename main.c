@@ -361,16 +361,6 @@ int main()
     tusb_init();
 
     pio_spi_init(pio0, 0, pio_add_program(pio0, &spi_cpha0_program), 8, 62.50f, 0, 0, SPI_SCK, SPI_MOSI, SPI_MISO);
-    pio_spi_init(spi.pio, spi.sm, offset,
-                 8,       // 8 bits per SPI frame
-            //            31.25f,  // 1 MHz @ 125 clk_sys
-                 62.50f,	  // 500 kHz   *********
-                 false,   // CPHA = 0
-                 false,   // CPOL = 0
-                 PICO_DEFAULT_SPI_SCK_PIN,
-                 PICO_DEFAULT_SPI_TX_PIN,
-                 PICO_DEFAULT_SPI_RX_PIN
-    );
 
     // Setup PL022 SPI
     enable_spi(SPI_BAUD);
