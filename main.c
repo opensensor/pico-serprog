@@ -196,32 +196,47 @@ static void command_loop(void)
                 uint32_t slen, rlen;
                 readbytes_blocking(&slen, 3); // Read send length
                 readbytes_blocking(&rlen, 3); // Read receive length
-                slen &= 0x00FFFFFF; // Ensure it's treated as 24-bit value
-                rlen &= 0x00FFFFFF; // Ensure it's treated as 24-bit value
+                slen &= 0x00FFFFFF; // Mask to use only the lower 24 bits
+                rlen &= 0x00FFFFFF; // Mask to use only the lower 24 bits
 
                 uint8_t tx_buffer[MAX_BUFFER_SIZE]; // Buffer for transmit data
                 uint8_t rx_buffer[MAX_BUFFER_SIZE]; // Buffer for receive data
 
-                // Handling send operation
+                // Read data to be sent (if slen > 0)
                 if (slen > 0) {
                     readbytes_blocking(tx_buffer, slen);
-                    cs_select(SPI_CS);
-                    spi_write_blocking(SPI_IF, tx_buffer, slen);
-                    cs_deselect(SPI_CS);
                 }
 
-                // Send ACK after write operation
+                // Perform SPI operation
+                cs_select(SPI_CS);
+                if (slen > 0) {
+                    spi_write_blocking(SPI_IF, tx_buffer, slen);
+                }
+                if (rlen > 0 && rlen < MAX_BUFFER_SIZE ) {
+                    spi_read_blocking(SPI_IF, 0, rx_buffer, rlen);
+                    // Send ACK followed by received data
+                    sendbyte_blocking(S_ACK);
+                    if (rlen > 0) {
+                        sendbytes_blocking(rx_buffer, rlen);
+                    }
+
+                    cs_deselect(SPI_CS);
+                    break;
+                }
+
+                // Send ACK after handling slen (before reading)
                 sendbyte_blocking(S_ACK);
 
-                // Handling receive operation
-                if (rlen > 0) {
-                    cs_select(SPI_CS);
-                    spi_read_blocking(SPI_IF, 0, rx_buffer, rlen);
-                    cs_deselect(SPI_CS);
+                // Handle receive operation in chunks
+                uint32_t chunk_size = (rlen < MAX_BUFFER_SIZE) ? rlen : MAX_BUFFER_SIZE;
 
-                    sendbytes_blocking(rx_buffer, rlen);
-                }
+                cs_select(SPI_CS);
+                spi_read_blocking(SPI_IF, 0, rx_buffer, chunk_size);
+                cs_deselect(SPI_CS);
 
+                sendbytes_blocking(rx_buffer, chunk_size);
+                rlen -= chunk_size;
+                cs_deselect(SPI_CS);
                 break;
             }
             case S_CMD_S_SPI_FREQ:
