@@ -190,7 +190,7 @@ static void command_loop(void)
                 sendbyte_blocking(S_ACK);
             else
                 sendbyte_blocking(S_NAK);
-            break;
+            break
         case S_CMD_O_SPIOP:
             {
                 uint32_t slen, rlen;
@@ -211,29 +211,34 @@ static void command_loop(void)
                 // Read data to be sent (if slen > 0)
                 if (slen > 0) {
                     readbytes_blocking(tx_buffer, slen);
+                }
+
+                // Perform SPI write operation (if slen > 0)
+                if (slen > 0) {
                     cs_select(SPI_CS);
                     spi_write_blocking(SPI_IF, tx_buffer, slen);
                     cs_deselect(SPI_CS);
                 }
 
-                // Send ACK after handling slen
+                // Send ACK after handling slen (before reading)
                 sendbyte_blocking(S_ACK);
 
-                // Handle rlen in chunks
-                while (rlen > 0) {
-                    uint32_t chunk_size = (rlen < MAX_BUFFER_SIZE) ? rlen : MAX_BUFFER_SIZE;
+                // Perform SPI read operation in chunks (if rlen > 0)
+                uint32_t total_read = 0;
+                while (total_read < rlen) {
+                    uint32_t chunk_size = (rlen - total_read > MAX_BUFFER_SIZE) ? MAX_BUFFER_SIZE : (rlen - total_read);
 
                     cs_select(SPI_CS);
                     spi_read_blocking(SPI_IF, 0, rx_buffer, chunk_size);
                     cs_deselect(SPI_CS);
 
                     sendbytes_blocking(rx_buffer, chunk_size);
-                    rlen -= chunk_size;
+                    total_read += chunk_size;
                 }
 
                 break;
             }
-        case S_CMD_S_SPI_FREQ:
+            case S_CMD_S_SPI_FREQ:
             {
                 uint32_t want_baud;
                 readbytes_blocking(&want_baud, 4);
