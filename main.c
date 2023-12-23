@@ -50,6 +50,20 @@ static void wait_for_write(void)
     } while (!tud_cdc_n_write_available(CDC_ITF));
 }
 
+static inline float freq_to_clkdiv(uint32_t freq) {
+    float div = clock_get_hz(clk_sys) * 1.0 / (freq * pio_spi_cycles_per_bit);
+
+    if (div < 1.0)
+        div = 1.0;
+    if (div > 65536.0)
+        div = 65536.0;
+
+    return div;
+}
+
+static inline uint32_t clkdiv_to_freq(float div) {
+    return clock_get_hz(clk_sys) / (div * pio_spi_cycles_per_bit);
+}
 
 static void enable_spi(uint baud)
 {
@@ -60,6 +74,7 @@ static void enable_spi(uint baud)
 
     spi_offset = pio_add_program(pio0, &spi_cpha0_program);
     spi_init(SPI_IF, baud);
+    float clkdiv = freq_to_clkdiv(freq);
     pio_spi_init(pio0, 0, pio_add_program(pio0, &spi_cpha0_program), 8, 4058.838, 0, 0, SPI_SCK, SPI_MOSI, SPI_MISO);
 
 
