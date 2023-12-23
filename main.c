@@ -202,17 +202,28 @@ static void command_loop(void)
                 uint8_t tx_buffer[MAX_BUFFER_SIZE]; // Buffer for transmit data
                 uint8_t rx_buffer[MAX_BUFFER_SIZE]; // Buffer for receive data
 
-                // Handle send operation in chunks
-                while (slen > 0) {
-                    uint32_t chunk_size = (slen < MAX_BUFFER_SIZE) ? slen : MAX_BUFFER_SIZE;
-                    readbytes_blocking(tx_buffer, chunk_size);
-
-                    cs_select(SPI_CS);
-                    spi_write_blocking(SPI_IF, tx_buffer, chunk_size);
-                    cs_deselect(SPI_CS);
-
-                    slen -= chunk_size;
+                // Read data to be sent (if slen > 0)
+                if (slen > 0) {
+                    readbytes_blocking(tx_buffer, slen);
                 }
+
+                // Perform SPI operation
+                cs_select(SPI_CS);
+                if (slen > 0) {
+                    spi_write_blocking(SPI_IF, tx_buffer, slen);
+                }
+                if (rlen > 0 && rlen < MAX_BUFFER_SIZE ) {
+                    spi_read_blocking(SPI_IF, 0, rx_buffer, rlen);
+                    // Send ACK followed by received data
+                    sendbyte_blocking(S_ACK);
+                    if (rlen > 0) {
+                        sendbytes_blocking(rx_buffer, rlen);
+                    }
+
+                    cs_deselect(SPI_CS);
+                    break;
+                }
+                cs_deselect(SPI_CS);
 
                 // Send ACK after handling slen (before reading)
                 sendbyte_blocking(S_ACK);
