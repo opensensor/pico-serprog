@@ -196,33 +196,39 @@ static void command_loop(void)
                 uint32_t slen, rlen;
                 readbytes_blocking(&slen, 3); // Read send length
                 readbytes_blocking(&rlen, 3); // Read receive length
-                slen &= 0x00FFFFFF; // Mask to zero out the upper 8 bits
-                rlen &= 0x00FFFFFF; // Mask to zero out the upper 8 bitsgi
+                slen &= 0x00FFFFFF; // Mask to use only the lower 24 bits
+                rlen &= 0x00FFFFFF; // Mask to use only the lower 24 bits
 
                 uint8_t tx_buffer[MAX_BUFFER_SIZE]; // Buffer for transmit data
                 uint8_t rx_buffer[MAX_BUFFER_SIZE]; // Buffer for receive data
 
+                // Handle error for oversized slen
+                if (slen > MAX_BUFFER_SIZE) {
+                    sendbyte_blocking(S_NAK);
+                    break;
+                }
+
                 // Read data to be sent (if slen > 0)
                 if (slen > 0) {
                     readbytes_blocking(tx_buffer, slen);
+                    cs_select(SPI_CS);
+                    spi_write_blocking(SPI_IF, tx_buffer, slen);
+                    cs_deselect(SPI_CS);
                 }
 
+                // Send ACK after handling slen
                 sendbyte_blocking(S_ACK);
 
-                if (slen > 0) {
-                    spi_write_blocking(SPI_IF, tx_buffer, slen);
-                }
+                // Handle rlen in chunks
+                while (rlen > 0) {
+                    uint32_t chunk_size = (rlen < MAX_BUFFER_SIZE) ? rlen : MAX_BUFFER_SIZE;
 
-                // Perform SPI operation in chunks
-                while(rlen > MAX_BUFFER_SIZE) {
                     cs_select(SPI_CS);
-                    spi_read_blocking(SPI_IF, 0, rx_buffer, MAX_BUFFER_SIZE);
+                    spi_read_blocking(SPI_IF, 0, rx_buffer, chunk_size);
                     cs_deselect(SPI_CS);
 
-                    // Send ACK followed by received data
-                    sendbytes_blocking(rx_buffer, MAX_BUFFER_SIZE);
-
-                    rlen -= MAX_BUFFER_SIZE;
+                    sendbytes_blocking(rx_buffer, chunk_size);
+                    rlen -= chunk_size;
                 }
 
                 break;
