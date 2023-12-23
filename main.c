@@ -227,15 +227,15 @@ static void command_loop(void)
                 // Send ACK after handling slen (before reading)
                 sendbyte_blocking(S_ACK);
 
-                // Handle receive operation in chunks
-                uint32_t chunk_size = (rlen < MAX_BUFFER_SIZE) ? rlen : MAX_BUFFER_SIZE;
-
+                // Handle receive operation in chunks for large rlen
                 cs_select(SPI_CS);
-                spi_read_blocking(SPI_IF, 0, rx_buffer, chunk_size);
-                cs_deselect(SPI_CS);
+                while (rlen > 0) {
+                    uint32_t chunk_size = (rlen < MAX_BUFFER_SIZE) ? rlen : MAX_BUFFER_SIZE;
 
-                sendbytes_blocking(rx_buffer, chunk_size);
-                rlen -= chunk_size;
+                    spi_read_blocking(SPI_IF, 0, rx_buffer, chunk_size);
+                    sendbytes_blocking(rx_buffer, chunk_size);
+                    rlen -= chunk_size;
+                }
                 cs_deselect(SPI_CS);
                 break;
             }
