@@ -205,38 +205,26 @@ static void command_loop(void)
                 // Read data to be sent (if slen > 0)
                 if (slen > 0) {
                     readbytes_blocking(tx_buffer, slen);
-                }
-
-                // Perform SPI operation
-                cs_select(SPI_CS);
-                if (slen > 0) {
+                    cs_select(SPI_CS);
                     spi_write_blocking(SPI_IF, tx_buffer, slen);
-                }
-                if (rlen > 0 && rlen < MAX_BUFFER_SIZE ) {
-                    spi_read_blocking(SPI_IF, 0, rx_buffer, rlen);
-                    // Send ACK followed by received data
-                    sendbyte_blocking(S_ACK);
-                    if (rlen > 0) {
-                        sendbytes_blocking(rx_buffer, rlen);
-                    }
-
                     cs_deselect(SPI_CS);
-                    break;
                 }
 
                 // Send ACK after handling slen (before reading)
                 sendbyte_blocking(S_ACK);
 
                 // Handle receive operation in chunks
-                uint32_t chunk_size = (rlen < MAX_BUFFER_SIZE) ? rlen : MAX_BUFFER_SIZE;
+                while (rlen > 0) {
+                    uint32_t chunk_size = (rlen < MAX_BUFFER_SIZE) ? rlen : MAX_BUFFER_SIZE;
 
-                cs_select(SPI_CS);
-                spi_read_blocking(SPI_IF, 0, rx_buffer, chunk_size);
-                cs_deselect(SPI_CS);
+                    cs_select(SPI_CS);
+                    spi_read_blocking(SPI_IF, 0, rx_buffer, chunk_size);
+                    cs_deselect(SPI_CS);
 
-                sendbytes_blocking(rx_buffer, chunk_size);
-                rlen -= chunk_size;
-                cs_deselect(SPI_CS);
+                    sendbytes_blocking(rx_buffer, chunk_size);
+                    rlen -= chunk_size;
+                }
+
                 break;
             }
             case S_CMD_S_SPI_FREQ:
