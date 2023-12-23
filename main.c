@@ -8,13 +8,17 @@
  *  https://github.com/dword1511/stm32-vserprog
  * 
  */
-
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include "pico/stdlib.h"
 #include "pico/time.h"
 #include "hardware/spi.h"
 #include "tusb.h"
 #include "serprog.h"
 #include "pio_spi.h"
+
+
 
 #define CDC_ITF     0           // USB CDC interface no
 
@@ -31,6 +35,30 @@
 // Define a global operation buffer and a pointer to track the current position
 uint8_t opbuf[MAX_OPBUF_SIZE];
 uint32_t opbuf_pos = 0;
+
+
+void sendbytes_usb(const uint8_t *buf, size_t len) {
+    // Check if USB is ready for data transfer
+    if (tud_cdc_connected()) {
+        // Write data to the USB CDC interface
+        tud_cdc_write(buf, len);
+        tud_cdc_write_flush();
+    }
+}
+
+
+void read_spi_and_send_via_usb(const pio_spi_inst_t *spi) {
+    static uint8_t rxbuf[BUF_SIZE];
+    memset(rxbuf, 0, BUF_SIZE); // Clear the receive buffer
+
+    // Assuming you have a function to initiate SPI read
+    pio_spi_write8_read8_blocking(spi, rxbuf, BUF_SIZE); // Reads BUF_SIZE bytes into rxbuf
+
+    // Transfer data via USB
+    // Assuming you have a function like sendbytes_usb for this
+    sendbytes_usb(rxbuf, BUF_SIZE); // You need to implement this function
+}
+
 
 static void enable_spi(uint baud)
 {
@@ -224,7 +252,9 @@ static void command_loop(void)
                 slen &= 0x00FFFFFF; // Mask to use only the lower 24 bits
                 rlen &= 0x00FFFFFF; // Mask to use only the lower 24 bits
 
-                handle_spi_op(slen, rlen);
+                // Now call the modified function to read from SPI and send via USB
+                // Assuming rlen is the length of data to read and send
+                read_spi_and_send_via_usb(rlen);
                 break;
             }
         case S_CMD_S_SPI_FREQ:
@@ -328,8 +358,10 @@ static void command_loop(void)
 int main()
 {
     // Setup USB
-    tusb_init();
     stdio_init_all();
+
+    tusb_init();
+
     // Setup PL022 SPI
     enable_spi(SPI_BAUD);
 
