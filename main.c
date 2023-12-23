@@ -36,23 +36,6 @@
 uint8_t opbuf[MAX_OPBUF_SIZE];
 uint32_t opbuf_pos = 0;
 
-static void wait_for_write(void)
-{
-    do {
-        tud_task();
-    } while (!tud_cdc_n_write_available(CDC_ITF));
-}
-
-
-void sendbytes_usb(const uint8_t *buf, size_t len) {
-    // Check if USB is ready for data transfer
-    wait_for_write();
-    // Write data to the USB CDC interface
-    tud_cdc_write(buf, len);
-    // tud_cdc_write_flush();
-}
-
-
 static void enable_spi(uint baud)
 {
     // Setup chip select GPIO
@@ -141,7 +124,6 @@ void read_spi_and_send_via_usb(const pio_spi_inst_t *spi, const uint32_t rlen) {
     // Ensure we send rlen bytes
     uint32_t remaining = rlen;
     while (remaining) {
-        // Perform a dummy write and then read
         uint32_t chunk_size = (remaining < MAX_BUFFER_SIZE) ? remaining : MAX_BUFFER_SIZE;
         pio_spi_read8_blocking(spi, rxbuf, chunk_size);
         remaining -= chunk_size;
