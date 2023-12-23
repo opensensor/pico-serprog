@@ -14,6 +14,7 @@
 #include "hardware/spi.h"
 #include "tusb.h"
 #include "serprog.h"
+#include "pio_spi.h"
 
 #define CDC_ITF     0           // USB CDC interface no
 
@@ -23,9 +24,9 @@
 #define SPI_MISO    4
 #define SPI_MOSI    3
 #define SPI_SCK     2
-#define MAX_BUFFER_SIZE 1024
-#define MAX_OPBUF_SIZE 1024
-#define SERIAL_BUFFER_SIZE 1024
+#define MAX_BUFFER_SIZE 512
+#define MAX_OPBUF_SIZE 512
+#define SERIAL_BUFFER_SIZE 512
 
 // Define a global operation buffer and a pointer to track the current position
 uint8_t opbuf[MAX_OPBUF_SIZE];
@@ -100,6 +101,7 @@ static inline uint8_t readbyte_blocking(void)
     return b;
 }
 
+
 static void wait_for_write(void)
 {
     do {
@@ -122,6 +124,29 @@ static inline void sendbyte_blocking(uint8_t b)
     wait_for_write();
     tud_cdc_n_write(CDC_ITF, &b, 1);
 }
+
+
+void handle_spi_op(uint32_t slen, uint32_t rlen) {
+    uint8_t tx_buffer[MAX_BUFFER_SIZE]; // Buffer for transmit data
+    uint8_t rx_buffer[MAX_BUFFER_SIZE]; // Buffer for receive data
+
+    // Read data to be sent
+    if (slen > 0) {
+        readbytes_blocking(tx_buffer, slen);  // Assuming you have this function
+    }
+
+    // Perform PIO SPI operation
+    cs_select(SPI_CS);  // Assuming cs_select function is defined
+    pio_spi_write_read_blocking(tx_buffer, rx_buffer, slen, rlen);  // Replace with your PIO SPI function
+    cs_deselect(SPI_CS);  // Assuming cs_deselect function is defined
+
+    // Send ACK and received data
+    sendbyte_blocking(S_ACK);  // Assuming sendbyte_blocking function is defined
+    if (rlen > 0) {
+        sendbytes_blocking(rx_buffer, rlen);  // Assuming sendbytes_blocking function is defined
+    }
+}
+
 
 static void command_loop(void)
 {
@@ -199,49 +224,10 @@ static void command_loop(void)
                 slen &= 0x00FFFFFF; // Mask to use only the lower 24 bits
                 rlen &= 0x00FFFFFF; // Mask to use only the lower 24 bits
 
-                uint8_t tx_buffer[MAX_BUFFER_SIZE]; // Buffer for transmit data
-                uint8_t rx_buffer[MAX_BUFFER_SIZE]; // Buffer for receive data
-
-                // Read data to be sent (if slen > 0)
-                if (slen > 0) {
-                    readbytes_blocking(tx_buffer, slen);
-                }
-
-                // Perform SPI operation
-                cs_select(SPI_CS);
-                if (slen > 0) {
-                    spi_write_blocking(SPI_IF, tx_buffer, slen);
-                }
-                if (rlen > 0 && rlen < MAX_BUFFER_SIZE ) {
-                    spi_read_blocking(SPI_IF, 0, rx_buffer, rlen);
-                    // Send ACK followed by received data
-                    sendbyte_blocking(S_ACK);
-                    if (rlen > 0) {
-                        sendbytes_blocking(rx_buffer, rlen);
-                    }
-
-                    cs_deselect(SPI_CS);
-                    break;
-                }
-
-                // Send ACK after handling slen (before reading)
-                sendbyte_blocking(S_ACK);
-
-                // Handle receive operation in chunks for large rlen
-                uint32_t chunk;
-                char buf[128];
-
-                for(uint32_t i = 0; i < rlen; i += chunk) {
-                    chunk = MIN(rlen - i, sizeof(buf));
-                    spi_read_blocking(SPI_IF, 0, buf, chunk);
-                    // Send ACK followed by received data
-                    sendbyte_blocking(S_ACK);
-                    sendbytes_blocking(buf, rlen);
-                }
-                cs_deselect(SPI_CS);
+                handle_spi_op(slen, rlen);
                 break;
             }
-            case S_CMD_S_SPI_FREQ:
+        case S_CMD_S_SPI_FREQ:
             {
                 uint32_t want_baud;
                 readbytes_blocking(&want_baud, 4);
@@ -343,6 +329,7 @@ int main()
 {
     // Setup USB
     tusb_init();
+    stdio_init_all();
     // Setup PL022 SPI
     enable_spi(SPI_BAUD);
 
