@@ -51,7 +51,7 @@ static void enable_spi(uint baud)
     gpio_put(SPI_CS, 1);
     gpio_set_dir(SPI_CS, GPIO_OUT);
 
-    spi_offset = pio_add_program(spi.pio, &spi_cpha0_program);
+    spi_offset = pio_add_program(pio0, &spi_cpha0_program);
     spi_init(SPI_IF, baud);
     pio_spi_init(pio0, 0, pio_add_program(pio0, &spi_cpha0_program), 8, 4058.838, 0, 0, SPI_SCK, SPI_MOSI, SPI_MISO);
 
