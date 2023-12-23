@@ -8,12 +8,17 @@
  *  https://github.com/dword1511/stm32-vserprog
  * 
  */
-
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include "pico/stdlib.h"
 #include "pico/time.h"
 #include "hardware/spi.h"
 #include "tusb.h"
 #include "serprog.h"
+#include "pio_spi.h"
+
+
 
 #define CDC_ITF     0           // USB CDC interface no
 
@@ -23,13 +28,42 @@
 #define SPI_MISO    4
 #define SPI_MOSI    3
 #define SPI_SCK     2
-#define MAX_BUFFER_SIZE 1024
-#define MAX_OPBUF_SIZE 1024
-#define SERIAL_BUFFER_SIZE 1024
+#define MAX_BUFFER_SIZE 512
+#define MAX_OPBUF_SIZE 512
+#define SERIAL_BUFFER_SIZE 512
 
 // Define a global operation buffer and a pointer to track the current position
 uint8_t opbuf[MAX_OPBUF_SIZE];
 uint32_t opbuf_pos = 0;
+
+
+void sendbytes_usb(const uint8_t *buf, size_t len) {
+    // Check if USB is ready for data transfer
+    if (tud_cdc_connected()) {
+        // Write data to the USB CDC interface
+        tud_cdc_write(buf, len);
+        tud_cdc_write_flush();
+    }
+}
+
+
+void read_spi_and_send_via_usb(const pio_spi_inst_t *spi, const uint32_t rlen) {
+    static uint8_t rxbuf[MAX_BUFFER_SIZE];
+    memset(rxbuf, 0, MAX_BUFFER_SIZE); // Clear the rx buffer
+
+    // Ensure we send rlen bytes
+    uint32_t remaining = rlen;
+    while (remaining) {
+        // Perform a dummy write and then read
+        uint32_t chunk_size = (remaining < MAX_BUFFER_SIZE) ? remaining : MAX_BUFFER_SIZE;
+        pio_spi_read8_blocking(spi, rxbuf, chunk_size);
+        remaining -= chunk_size;
+
+        // Transfer data via USB
+        sendbytes_usb(rxbuf, chunk_size);
+    }
+}
+
 
 static void enable_spi(uint baud)
 {
@@ -100,6 +134,7 @@ static inline uint8_t readbyte_blocking(void)
     return b;
 }
 
+
 static void wait_for_write(void)
 {
     do {
@@ -122,6 +157,7 @@ static inline void sendbyte_blocking(uint8_t b)
     wait_for_write();
     tud_cdc_n_write(CDC_ITF, &b, 1);
 }
+
 
 static void command_loop(void)
 {
@@ -224,24 +260,16 @@ static void command_loop(void)
                     break;
                 }
 
-                // Send ACK after handling slen (before reading)
-                sendbyte_blocking(S_ACK);
-
-                // Handle receive operation in chunks for large rlen
-                uint32_t chunk;
-                char buf[128];
-
-                for(uint32_t i = 0; i < rlen; i += chunk) {
-                    chunk = MIN(rlen - i, sizeof(buf));
-                    spi_read_blocking(SPI_IF, 0, buf, chunk);
-                    // Send ACK followed by received data
-                    sendbyte_blocking(S_ACK);
-                    sendbytes_blocking(buf, rlen);
-                }
-                cs_deselect(SPI_CS);
+                // Now call the modified function to read from SPI and send via USB
+                // Assuming rlen is the length of data to read and send
+                pio_spi_inst_t spi = {
+                        .pio = pio0,
+                        .sm = 0
+                };
+                read_spi_and_send_via_usb(&spi, rlen);
                 break;
             }
-            case S_CMD_S_SPI_FREQ:
+        case S_CMD_S_SPI_FREQ:
             {
                 uint32_t want_baud;
                 readbytes_blocking(&want_baud, 4);
@@ -342,7 +370,10 @@ static void command_loop(void)
 int main()
 {
     // Setup USB
+    stdio_init_all();
+
     tusb_init();
+
     // Setup PL022 SPI
     enable_spi(SPI_BAUD);
 
