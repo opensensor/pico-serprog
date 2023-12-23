@@ -233,7 +233,11 @@ static void command_loop(void)
 
                 // Now call the modified function to read from SPI and send via USB
                 // Assuming rlen is the length of data to read and send
-                read_spi_and_send_via_usb(SPI_IF, rlen);
+                pio_spi_inst_t spi = {
+                        .pio = pio0,
+                        .sm = 0
+                };
+                read_spi_and_send_via_usb(spi, rlen);
                 break;
             }
         case S_CMD_S_SPI_FREQ:
