@@ -137,6 +137,18 @@ static void command_loop(void)
             sendbyte_blocking(0x01);
             sendbyte_blocking(0x00);
             break;
+        case S_CMD_Q_RDNMAXLEN:
+        case S_CMD_Q_WRNMAXLEN:
+            {
+                sendbyte_blocking(S_ACK);
+
+                // Break down MAX_BUFFER_SIZE into three bytes (24 bits) in little-endian format
+                sendbyte_blocking(MAX_BUFFER_SIZE & 0xFF);         // LSB
+                sendbyte_blocking((MAX_BUFFER_SIZE >> 8) & 0xFF);  // Middle byte
+                sendbyte_blocking((MAX_BUFFER_SIZE >> 16) & 0xFF); // MSB
+
+                break;
+            }
         case S_CMD_Q_CMDMAP:
             {
                 static const uint32_t cmdmap[8] = {
