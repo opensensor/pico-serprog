@@ -152,8 +152,10 @@ static void command_loop(void)
         case S_CMD_Q_CMDMAP:
             {
                 static const uint32_t cmdmap[8] = {
-                    (1 << S_CMD_NOP)       |
+                      (1 << S_CMD_NOP)       |
                       (1 << S_CMD_Q_IFACE)   |
+                      (1 << S_CMD_Q_RDNMAXLEN)   |
+                      (1 << S_CMD_Q_WRNMAXLEN)   |
                       (1 << S_CMD_Q_CMDMAP)  |
                       (1 << S_CMD_Q_PGMNAME) |
                       (1 << S_CMD_Q_SERBUF)  |
@@ -162,7 +164,10 @@ static void command_loop(void)
                       (1 << S_CMD_O_SPIOP)   |
                       (1 << S_CMD_S_BUSTYPE) |
                       (1 << S_CMD_S_SPI_FREQ)|
-                      (1 << S_CMD_S_PIN_STATE)
+                      (1 << S_CMD_S_PIN_STATE)|
+                      (1 << S_CMD_R_BYTE)|
+                      (1 << S_CMD_O_WRITEB)|
+                      (1 << S_CMD_O_INIT)
                 };
 
                 sendbyte_blocking(S_ACK);
