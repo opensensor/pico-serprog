@@ -24,6 +24,7 @@
 
 
 #define CDC_ITF     0           // USB CDC interface no
+#define PIN_LED PICO_DEFAULT_LED_PIN
 
 #define SPI_IF      spi0        // Which PL022 to use
 #define SPI_BAUD    4000000    // Default baudrate (4 MHz - SPI default)
