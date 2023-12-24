@@ -8,9 +8,10 @@
  *  https://github.com/dword1511/stm32-vserprog
  * 
  */
-#include <stdlib.h>
+
 #include <stdio.h>
 #include <string.h>
+#include "pico/stdlib.h"
 #include "pico/binary_info.h"
 #include "hardware/clocks.h"
 #include "pico/stdlib.h"
@@ -78,7 +79,7 @@ static void enable_spi(uint baud)
     spi_offset = pio_add_program(pio0, &spi_cpha0_program);
     spi_init(SPI_IF, baud);
     float clkdiv = freq_to_clkdiv(FREQ);
-    pio_spi_init(pio0, 0, pio_add_program(pio0, &spi_cpha0_program), 8, 4058.838, 0, 0, SPI_SCK, SPI_MOSI, SPI_MISO);
+    pio_spi_init(pio0, 0, pio_add_program(pio0, &spi_cpha0_program), 8, clkdiv, false, false, SPI_SCK, SPI_MOSI, SPI_MISO);
 
 
     // Setup PL022
@@ -257,26 +258,24 @@ static void command_loop(void)
                 uint8_t tx_buffer[MAX_BUFFER_SIZE]; // Buffer for transmit data
                 uint8_t rx_buffer[MAX_BUFFER_SIZE]; // Buffer for receive data
 
-                // Read data to be sent (if slen > 0)
-                if (slen > 0) {
-                    readbytes_blocking(tx_buffer, slen);
+                cs_select(PIN_CS);
+                fread(tx_buffer, 1, wlen, stdin);
+                pio_spi_write8_blocking(spi, tx_buffer, wlen);
+
+                putchar(S_ACK);
+                uint32_t chunk;
+
+                for(uint32_t i = 0; i < rlen; i += chunk) {
+                    chunk = MIN(rlen - i, sizeof(rx_buffer));
+                    pio_spi_read8_blocking(spi, rx_buffer, chunk);
+                    fwrite(rx_buffer, 1, chunk, stdout);
+                    fflush(stdout);
                 }
 
-                // Perform SPI operation
-                cs_select(SPI_CS);
-                if (slen > 0) {
-                    spi_write_blocking(SPI_IF, tx_buffer, slen);
-                }
-                // Now call the modified function to read from SPI and send via USB
-                // Assuming rlen is the length of data to read and send
-                pio_spi_inst_t spi = {
-                        .pio = pio0,
-                        .sm = 0,
-                        .cs_pin = 7
-                };
-                read_spi_and_send_via_usb(&spi, rlen);
-                cs_deselect(SPI_CS);
-                break;
+                cs_deselect(PIN_CS);
+            }
+            break;
+
             }
         case S_CMD_S_SPI_FREQ:
             {
@@ -385,8 +384,15 @@ int main()
 
     tusb_init();
 
-    // Setup PL022 SPI
-    enable_spi(SPI_BAUD);
+    // Initialize CS
+    gpio_init(PIN_CS);
+    gpio_put(PIN_CS, 1);
+    gpio_set_dir(PIN_CS, GPIO_OUT);
 
+    spi_offset = pio_add_program(spi.pio, &spi_cpha0_program);
+    serprog_spi_init(1000000); // 1 MHz
+
+    gpio_init(PIN_LED);
+    gpio_set_dir(PIN_LED, GPIO_OUT);
     command_loop();
 }
