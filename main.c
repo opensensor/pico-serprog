@@ -258,7 +258,7 @@ static void command_loop(void)
                 uint8_t tx_buffer[MAX_BUFFER_SIZE]; // Buffer for transmit data
                 uint8_t rx_buffer[MAX_BUFFER_SIZE]; // Buffer for receive data
 
-                cs_select(PIN_CS);
+                cs_select(SPI_CS);
                 fread(tx_buffer, 1, wlen, stdin);
                 pio_spi_write8_blocking(spi, tx_buffer, wlen);
 
@@ -272,7 +272,7 @@ static void command_loop(void)
                     fflush(stdout);
                 }
 
-                cs_deselect(PIN_CS);
+                cs_deselect(SPI_CS);
             }
             break;
 
@@ -385,9 +385,9 @@ int main()
     tusb_init();
 
     // Initialize CS
-    gpio_init(PIN_CS);
-    gpio_put(PIN_CS, 1);
-    gpio_set_dir(PIN_CS, GPIO_OUT);
+    gpio_init(SPI_CS);
+    gpio_put(SPI_CS, 1);
+    gpio_set_dir(SPI_CS, GPIO_OUT);
 
     spi_offset = pio_add_program(spi.pio, &spi_cpha0_program);
     serprog_spi_init(1000000); // 1 MHz
