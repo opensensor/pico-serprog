@@ -27,7 +27,7 @@
 #define PIN_LED PICO_DEFAULT_LED_PIN
 
 #define SPI_IF      spi0        // Which PL022 to use
-#define SPI_BAUD    4000000    // Default baudrate (4 MHz - SPI default)
+#define SPI_BAUD    115200    // Default baudrate (4 MHz - SPI default)
 #define SPI_CS      5
 #define SPI_MISO    4
 #define SPI_MOSI    3
@@ -389,8 +389,8 @@ int main()
     gpio_set_dir(SPI_CS, GPIO_OUT);
 
     spi_offset = pio_add_program(spi.pio, &spi_cpha0_program);
-    serprog_spi_init(1000000); // 1 MHz
-
+    enable_spi(SPI_BAUD);
+    
     gpio_init(PIN_LED);
     gpio_set_dir(PIN_LED, GPIO_OUT);
     command_loop();
