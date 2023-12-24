@@ -18,7 +18,7 @@
 #define CDC_ITF     0           // USB CDC interface no
 
 #define SPI_IF      spi0        // Which PL022 to use
-#define SPI_BAUD    12000000    // Default baudrate (4 MHz - SPI default)
+#define SPI_BAUD    4000000    // Default baudrate (4 MHz - SPI default)
 #define SPI_CS      5
 #define SPI_MISO    4
 #define SPI_MOSI    3
