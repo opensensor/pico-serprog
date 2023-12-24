@@ -31,6 +31,23 @@
 uint8_t opbuf[MAX_OPBUF_SIZE];
 uint32_t opbuf_pos = 0;
 
+#define BUF_LEN         0x100
+
+void printbuf(uint8_t buf[], size_t len) {
+    int i;
+    for (i = 0; i < len; ++i) {
+        if (i % 16 == 15)
+            printf("%02x\n", buf[i]);
+        else
+            printf("%02x ", buf[i]);
+    }
+
+    // append trailing newline if there isn't one
+    if (i % 16) {
+        putchar('\n');
+    }
+}
+
 static void enable_spi(uint baud)
 {
     // Setup chip select GPIO
@@ -228,15 +245,26 @@ static void command_loop(void)
                 sendbyte_blocking(S_ACK);
 
                 // Handle receive operation in chunks for large rlen
-                uint32_t chunk;
-                char buf[128];
+                uint32_t chunk = BUF_LEN;
+
+                uint8_t out_buf[BUF_LEN], in_buf[BUF_LEN];
+
+                // Initialize output buffer
+                for (size_t i = 0; i < BUF_LEN; ++i) {
+                    out_buf[i] = i;
+                }
 
                 for(uint32_t i = 0; i < rlen; i += chunk) {
-                    chunk = MIN(rlen - i, sizeof(buf));
-                    spi_read_blocking(SPI_IF, 0, buf, chunk);
-                    // Send ACK followed by received data
-                    sendbyte_blocking(S_ACK);
-                    sendbytes_blocking(buf, rlen);
+                    // Write the output buffer to MOSI, and at the same time read from MISO.
+                    spi_write_read_blocking(spi_default, out_buf, in_buf, chunk);
+
+                    // Write to stdio whatever came in on the MISO line.
+                    printbuf(in_buf, BUF_LEN);
+
+                    chunk = MIN(rlen - i, sizeof(in_buf));
+
+                    // Sleep for ten seconds so you get a chance to read the output.
+                    sleep_ms(10 * 1000);
                 }
                 cs_deselect(SPI_CS);
                 break;
@@ -345,6 +373,12 @@ int main()
     tusb_init();
     // Setup PL022 SPI
     enable_spi(SPI_BAUD);
+
+    // Enable UART so we can print
+    stdio_init_all();
+
+    // Make the SPI pins available to picotool
+    bi_decl(bi_4pins_with_func(SPI_MISO, SPI_MOSI, SPI_SCK, SPI_CS, GPIO_FUNC_SPI));
 
     command_loop();
 }
