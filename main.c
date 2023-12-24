@@ -268,7 +268,7 @@ static void command_loop(void)
 
                 for(uint32_t i = 0; i < rlen; i += chunk) {
                     chunk = MIN(rlen - i, sizeof(rx_buffer));
-                    pio_spi_read8_blocking(spi, rx_buffer, chunk);
+                    pio_spi_read8_blocking(&spi, rx_buffer, chunk);
                     fwrite(rx_buffer, 1, chunk, stdout);
                     fflush(stdout);
                 }
