@@ -132,6 +132,14 @@ static void command_loop(void)
         case S_CMD_NOP:
             sendbyte_blocking(S_ACK);
             break;
+        case S_CMD_O_DELAY:
+            {
+                uint32_t delay;
+                readbytes_blocking(&delay, 3);
+                sleep_us(delay);
+                sendbyte_blocking(S_ACK);
+                break;
+            }
         case S_CMD_Q_IFACE:
             sendbyte_blocking(S_ACK);
             sendbyte_blocking(0x01);
@@ -153,6 +161,7 @@ static void command_loop(void)
             {
                 static const uint32_t cmdmap[8] = {
                       (1 << S_CMD_NOP)       |
+                      (1 << S_CMD_O_DELAY)       |
                       (1 << S_CMD_Q_IFACE)   |
                       (1 << S_CMD_Q_RDNMAXLEN)   |
                       (1 << S_CMD_Q_WRNMAXLEN)   |
