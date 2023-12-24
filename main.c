@@ -110,7 +110,7 @@ static void wait_for_write(void)
 static inline void sendbytes_blocking(const void *b, uint32_t len)
 {
     while (len) {
-        wait_for_write();
+        // wait_for_write();
         uint32_t w = tud_cdc_n_write(CDC_ITF, b, len);
         b += w;
         len -= w;
@@ -132,6 +132,14 @@ static void command_loop(void)
         case S_CMD_NOP:
             sendbyte_blocking(S_ACK);
             break;
+        case S_CMD_O_DELAY:
+            {
+                uint32_t delay;
+                readbytes_blocking(&delay, 3);
+                sleep_us(delay);
+                sendbyte_blocking(S_ACK);
+                break;
+            }
         case S_CMD_Q_IFACE:
             sendbyte_blocking(S_ACK);
             sendbyte_blocking(0x01);
@@ -153,6 +161,7 @@ static void command_loop(void)
             {
                 static const uint32_t cmdmap[8] = {
                       (1 << S_CMD_NOP)       |
+                      (1 << S_CMD_O_DELAY)       |
                       (1 << S_CMD_Q_IFACE)   |
                       (1 << S_CMD_Q_RDNMAXLEN)   |
                       (1 << S_CMD_Q_WRNMAXLEN)   |
@@ -241,23 +250,22 @@ static void command_loop(void)
                     cs_deselect(SPI_CS);
                     break;
                 }
-                cs_deselect(SPI_CS);
 
                 // Send ACK after handling slen (before reading)
                 sendbyte_blocking(S_ACK);
 
-                // Handle receive operation in chunks
-                while (rlen > 0) {
-                    uint32_t chunk_size = (rlen < MAX_BUFFER_SIZE) ? rlen : MAX_BUFFER_SIZE;
+                // Handle receive operation in chunks for large rlen
+                uint32_t chunk;
+                char buf[128];
 
-                    cs_select(SPI_CS);
-                    spi_read_blocking(SPI_IF, 0, rx_buffer, chunk_size);
-                    cs_deselect(SPI_CS);
-
-                    sendbytes_blocking(rx_buffer, chunk_size);
-                    rlen -= chunk_size;
+                for(uint32_t i = 0; i < rlen; i += chunk) {
+                    chunk = MIN(rlen - i, sizeof(buf));
+                    spi_read_blocking(SPI_IF, 0, buf, chunk);
+                    // Send ACK followed by received data
+                    sendbyte_blocking(S_ACK);
+                    sendbytes_blocking(buf, rlen);
                 }
-
+                cs_deselect(SPI_CS);
                 break;
             }
             case S_CMD_S_SPI_FREQ:
