@@ -167,7 +167,8 @@ static void command_loop(void)
                       (1 << S_CMD_S_PIN_STATE)|
                       (1 << S_CMD_R_BYTE)|
                       (1 << S_CMD_O_WRITEB)|
-                      (1 << S_CMD_O_INIT)
+                      (1 << S_CMD_O_INIT)|
+                      (1 << S_CMD_O_EXEC)
                 };
 
                 sendbyte_blocking(S_ACK);
@@ -345,6 +346,43 @@ static void command_loop(void)
             {
                 opbuf_pos = 0; // Reset the operation buffer position
                 memset(opbuf, 0, MAX_OPBUF_SIZE); // Clear the buffer (optional)
+                sendbyte_blocking(S_ACK);
+                break;
+            }
+        case S_CMD_O_EXEC:
+            {
+                if (opbuf_pos == 0) {
+                    sendbyte_blocking(S_NAK);
+                    break;
+                }
+
+                // Send ACK before handling the operation buffer
+                sendbyte_blocking(S_ACK);
+
+                // Handle the operation buffer
+                uint32_t i = 0;
+                while (i < opbuf_pos) {
+                    uint8_t cmd = opbuf[i++];
+                    uint32_t addr;
+                    uint8_t byte;
+
+                    switch (cmd) {
+                    case S_CMD_O_WRITEB:
+                        memcpy(&addr, &opbuf[i], 3);
+                        i += 3;
+                        byte = opbuf[i++];
+                        cs_select(SPI_CS);
+                        spi_write_blocking(SPI_IF, (uint8_t*)&addr, 3); // Send address
+                        spi_write_blocking(SPI_IF, &byte, 1); // Send data
+                        cs_deselect(SPI_CS);
+                        break;
+                    default:
+                        sendbyte_blocking(S_NAK);
+                        break;
+                    }
+                }
+
+                // Send ACK after handling the operation buffer
                 sendbyte_blocking(S_ACK);
                 break;
             }
