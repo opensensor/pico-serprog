@@ -18,14 +18,14 @@
 #define CDC_ITF     0           // USB CDC interface no
 
 #define SPI_IF      spi0        // Which PL022 to use
-#define SPI_BAUD    4000000    // Default baudrate (4 MHz - SPI default)
+#define SPI_BAUD    10000000    // Default baudrate (4 MHz - SPI default)
 #define SPI_CS      5
 #define SPI_MISO    4
 #define SPI_MOSI    3
 #define SPI_SCK     2
-#define MAX_BUFFER_SIZE 1024
-#define MAX_OPBUF_SIZE 1024
-#define SERIAL_BUFFER_SIZE 1024
+#define MAX_BUFFER_SIZE 256
+#define MAX_OPBUF_SIZE 64
+#define SERIAL_BUFFER_SIZE 64
 
 // Define a global operation buffer and a pointer to track the current position
 uint8_t opbuf[MAX_OPBUF_SIZE];
@@ -143,9 +143,9 @@ static void command_loop(void)
                 sendbyte_blocking(S_ACK);
 
                 // Break down MAX_BUFFER_SIZE into three bytes (24 bits) in little-endian format
-                sendbyte_blocking(MAX_BUFFER_SIZE & 0xFF);         // LSB
-                sendbyte_blocking((MAX_BUFFER_SIZE >> 8) & 0xFF);  // Middle byte
-                sendbyte_blocking((MAX_BUFFER_SIZE >> 16) & 0xFF); // MSB
+                sendbyte_blocking(32 & 0xFF);         // LSB
+                sendbyte_blocking((32 >> 8) & 0xFF);  // Middle byte
+                sendbyte_blocking((32 >> 16) & 0xFF); // MSB
 
                 break;
             }
@@ -164,7 +164,6 @@ static void command_loop(void)
                       (1 << S_CMD_O_SPIOP)   |
                       (1 << S_CMD_S_BUSTYPE) |
                       (1 << S_CMD_S_SPI_FREQ)|
-                      (1 << S_CMD_S_PIN_STATE)|
                       (1 << S_CMD_R_BYTE)|
                       (1 << S_CMD_O_WRITEB)|
                       (1 << S_CMD_O_INIT)|
@@ -275,13 +274,6 @@ static void command_loop(void)
                 }
                 break;
             }
-        case S_CMD_S_PIN_STATE:
-            if (readbyte_blocking())
-                enable_spi(baud);
-            else
-                disable_spi();
-            sendbyte_blocking(S_ACK);
-            break;
         case S_CMD_R_BYTE:
             {
                 uint32_t addr;
