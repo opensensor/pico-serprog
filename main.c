@@ -9,27 +9,66 @@
  * 
  */
 
+#include <stdio.h>
+#include <string.h>
+#include "pico/stdlib.h"
+#include "pico/binary_info.h"
+#include "hardware/clocks.h"
 #include "pico/stdlib.h"
 #include "pico/time.h"
 #include "hardware/spi.h"
 #include "tusb.h"
 #include "serprog.h"
+#include "pio_spi.h"
+
+
 
 #define CDC_ITF     0           // USB CDC interface no
+#define PIN_LED PICO_DEFAULT_LED_PIN
 
 #define SPI_IF      spi0        // Which PL022 to use
-#define SPI_BAUD    4000000    // Default baudrate (4 MHz - SPI default)
+#define SPI_BAUD    115200    // Default baudrate (4 MHz - SPI default)
 #define SPI_CS      5
 #define SPI_MISO    4
 #define SPI_MOSI    3
 #define SPI_SCK     2
-#define MAX_BUFFER_SIZE 1024
-#define MAX_OPBUF_SIZE 1024
-#define SERIAL_BUFFER_SIZE 1024
+#define MAX_BUFFER_SIZE 512
+#define MAX_OPBUF_SIZE 512
+#define SERIAL_BUFFER_SIZE 512
+#define FREQ 1000000
 
 // Define a global operation buffer and a pointer to track the current position
 uint8_t opbuf[MAX_OPBUF_SIZE];
 uint32_t opbuf_pos = 0;
+
+static const pio_spi_inst_t spi = {
+        .pio = pio0,
+        .sm = 0,
+        .cs_pin = SPI_CS
+};
+static uint spi_offset;
+
+static void wait_for_write(void)
+{
+    do {
+        tud_task();
+    } while (!tud_cdc_n_write_available(CDC_ITF));
+}
+
+static inline float freq_to_clkdiv(uint32_t freq) {
+    float div = clock_get_hz(clk_sys) * 1.0 / (freq * pio_spi_cycles_per_bit);
+
+    if (div < 1.0)
+        div = 1.0;
+    if (div > 65536.0)
+        div = 65536.0;
+
+    return div;
+}
+
+static inline uint32_t clkdiv_to_freq(float div) {
+    return clock_get_hz(clk_sys) / (div * pio_spi_cycles_per_bit);
+}
 
 static void enable_spi(uint baud)
 {
@@ -38,8 +77,13 @@ static void enable_spi(uint baud)
     gpio_put(SPI_CS, 1);
     gpio_set_dir(SPI_CS, GPIO_OUT);
 
-    // Setup PL022
+    spi_offset = pio_add_program(pio0, &spi_cpha0_program);
     spi_init(SPI_IF, baud);
+    float clkdiv = freq_to_clkdiv(FREQ);
+    pio_spi_init(pio0, 0, pio_add_program(pio0, &spi_cpha0_program), 8, clkdiv, false, false, SPI_SCK, SPI_MOSI, SPI_MISO);
+
+
+    // Setup PL022
     gpio_set_function(SPI_MISO, GPIO_FUNC_SPI);
     gpio_set_function(SPI_MOSI, GPIO_FUNC_SPI);
     gpio_set_function(SPI_SCK,  GPIO_FUNC_SPI);
@@ -100,28 +144,41 @@ static inline uint8_t readbyte_blocking(void)
     return b;
 }
 
-static void wait_for_write(void)
-{
-    do {
-        tud_task();
-    } while (!tud_cdc_n_write_available(CDC_ITF));
-}
 
 static inline void sendbytes_blocking(const void *b, uint32_t len)
 {
     while (len) {
-        // wait_for_write();
+        wait_for_write();
         uint32_t w = tud_cdc_n_write(CDC_ITF, b, len);
         b += w;
         len -= w;
     }
 }
 
+
+void read_spi_and_send_via_usb(const pio_spi_inst_t *spi, const uint32_t rlen) {
+    static uint8_t rxbuf[MAX_BUFFER_SIZE];
+    memset(rxbuf, 0, MAX_BUFFER_SIZE); // Clear the rx buffer
+
+    // Ensure we send rlen bytes
+    uint32_t remaining = rlen;
+    while (remaining) {
+        uint32_t chunk_size = (remaining < MAX_BUFFER_SIZE) ? remaining : MAX_BUFFER_SIZE;
+        pio_spi_read8_blocking(spi, rxbuf, chunk_size);
+        remaining -= chunk_size;
+
+        // Transfer data via USB
+        sendbytes_blocking(rxbuf, chunk_size);
+    }
+}
+
+
 static inline void sendbyte_blocking(uint8_t b)
 {
     wait_for_write();
     tud_cdc_n_write(CDC_ITF, &b, 1);
 }
+
 
 static void command_loop(void)
 {
@@ -202,46 +259,24 @@ static void command_loop(void)
                 uint8_t tx_buffer[MAX_BUFFER_SIZE]; // Buffer for transmit data
                 uint8_t rx_buffer[MAX_BUFFER_SIZE]; // Buffer for receive data
 
-                // Read data to be sent (if slen > 0)
-                if (slen > 0) {
-                    readbytes_blocking(tx_buffer, slen);
-                }
-
-                // Perform SPI operation
                 cs_select(SPI_CS);
-                if (slen > 0) {
-                    spi_write_blocking(SPI_IF, tx_buffer, slen);
-                }
-                if (rlen > 0 && rlen < MAX_BUFFER_SIZE ) {
-                    spi_read_blocking(SPI_IF, 0, rx_buffer, rlen);
-                    // Send ACK followed by received data
-                    sendbyte_blocking(S_ACK);
-                    if (rlen > 0) {
-                        sendbytes_blocking(rx_buffer, rlen);
-                    }
+                fread(tx_buffer, 1, slen, stdin);
+                pio_spi_write8_blocking(&spi, tx_buffer, slen);
 
-                    cs_deselect(SPI_CS);
-                    break;
-                }
-
-                // Send ACK after handling slen (before reading)
-                sendbyte_blocking(S_ACK);
-
-                // Handle receive operation in chunks for large rlen
+                putchar(S_ACK);
                 uint32_t chunk;
-                char buf[128];
 
                 for(uint32_t i = 0; i < rlen; i += chunk) {
-                    chunk = MIN(rlen - i, sizeof(buf));
-                    spi_read_blocking(SPI_IF, 0, buf, chunk);
-                    // Send ACK followed by received data
-                    sendbyte_blocking(S_ACK);
-                    sendbytes_blocking(buf, rlen);
+                    chunk = MIN(rlen - i, sizeof(rx_buffer));
+                    pio_spi_read8_blocking(&spi, rx_buffer, chunk);
+                    fwrite(rx_buffer, 1, chunk, stdout);
+                    fflush(stdout);
                 }
+
                 cs_deselect(SPI_CS);
                 break;
             }
-            case S_CMD_S_SPI_FREQ:
+        case S_CMD_S_SPI_FREQ:
             {
                 uint32_t want_baud;
                 readbytes_blocking(&want_baud, 4);
@@ -342,9 +377,21 @@ static void command_loop(void)
 int main()
 {
     // Setup USB
-    tusb_init();
-    // Setup PL022 SPI
-    enable_spi(SPI_BAUD);
+    stdio_init_all();
 
+    stdio_set_translate_crlf(&stdio_usb, false);
+
+    tusb_init();
+
+    // Initialize CS
+    gpio_init(SPI_CS);
+    gpio_put(SPI_CS, 1);
+    gpio_set_dir(SPI_CS, GPIO_OUT);
+
+    spi_offset = pio_add_program(spi.pio, &spi_cpha0_program);
+    enable_spi(SPI_BAUD);
+    
+    gpio_init(PIN_LED);
+    gpio_set_dir(PIN_LED, GPIO_OUT);
     command_loop();
 }
