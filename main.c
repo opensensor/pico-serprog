@@ -274,9 +274,7 @@ static void command_loop(void)
                 }
 
                 cs_deselect(SPI_CS);
-            }
-            break;
-
+                break;
             }
         case S_CMD_S_SPI_FREQ:
             {
