@@ -260,8 +260,8 @@ static void command_loop(void)
                 uint8_t rx_buffer[MAX_BUFFER_SIZE]; // Buffer for receive data
 
                 cs_select(SPI_CS);
-                fread(tx_buffer, 1, wlen, stdin);
-                pio_spi_write8_blocking(spi, tx_buffer, wlen);
+                fread(tx_buffer, 1, slen, stdin);
+                pio_spi_write8_blocking(&spi, tx_buffer, slen);
 
                 putchar(S_ACK);
                 uint32_t chunk;
