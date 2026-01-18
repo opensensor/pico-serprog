@@ -7,12 +7,12 @@ possibly other RP2040 based boards. Based on pico-serprog by GitHub user
 This takes about 17 seconds to read the 8MiB BIOS chip of an X200.
 
 Pinout for the SPI lines:
-| Pin | Function |
-|-----|----------|
-|  7  | CS       |
-|  6  | MISO     |
-|  5  | MOSI     |
-|  4  | SCK      |
+| Pin | Function | GPIO Line Number |
+|-----|----------|------------------|
+|  7  | CS       | GP5              |
+|  6  | MISO     | GP4              |
+|  5  | MOSI     | GP3              |
+|  4  | SCK      | GP2              |
 
 ![Pico pinout](pinout.png)
 
